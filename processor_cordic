@@ -1,0 +1,36 @@
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+library work;
+use work.all;
+
+entity processor_cordic is
+port(	clk, reset, load : in std_logic;
+	angle : in real;--sfixed(3 downto -8);
+	cos, sin : out real;--cos, sin : out sfixed(16 downto -14);4
+	ready : buffer std_logic);
+end entity;
+
+architecture FULL_VERSION of processor_cordic is
+component fsm_cordic is
+port(	clk, reset, load : in std_logic;
+	angle : in real;--sfixed(3 downto -8);
+	cz : in std_logic;
+	init, go : out std_logic;
+	theta : buffer real;
+	cas : out integer);
+end component;
+component dp_cordic is
+port(	clk, reset, load : in std_logic;
+	angle : in real;
+	cas : in integer;
+	cos, sin : out real;--cos, sin : out sfixed(16 downto -14);
+	ready : buffer std_logic);
+end component;
+signal go, init : std_logic;
+signal theta : real;
+signal cas : integer;
+begin
+FSM : fsm_cordic port map (clk, reset, load, angle, ready, init, go, theta, cas);
+DP : dp_cordic port map (clk, init, go, theta, cas, cos, sin, ready);
+end architecture;

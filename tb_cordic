@@ -1,0 +1,29 @@
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+library work;
+use work.all;
+
+entity tb_cordic is
+end entity;
+
+architecture testbench of tb_cordic is
+component processor_cordic is
+port(	clk, reset, load : in std_logic;
+	angle : in real;--sfixed(3 downto -8);
+	cos, sin : out real;--cos, sin : out sfixed(16 downto -14);
+	ready : buffer std_logic);
+end component;
+signal clk, reset, load, ready : std_logic;
+signal angle, cos, sin : real;
+begin
+UUT : processor_cordic port map (clk, reset, load, angle, cos, sin, ready);
+reset <= '0';
+load <= '1';
+angle <= 10.0;
+process
+begin
+clk <= '0'; wait for 5 ns;
+clk <= '1'; wait for 5 ns;
+end process;
+end architecture;

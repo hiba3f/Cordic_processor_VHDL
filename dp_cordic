@@ -1,0 +1,123 @@
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+use ieee.math_real.all;
+use ieee.fixed_pkg.all;
+
+entity dp_cordic is
+port(	clk, reset, load : in std_logic;
+	angle : in real;
+	cas : in integer;
+	cos, sin : out real;--cos, sin : out sfixed(16 downto -14);
+	ready : buffer std_logic);
+end entity;
+
+architecture dp of dp_cordic is
+signal x : real := 1.0;
+signal y : real := 0.0;
+signal cnt : integer := 0;
+signal theta : real;
+signal atan : real;
+begin
+
+atan <= 0.7853 when cnt = 0
+	else 0.4636 when cnt = 1
+	else 0.2449 when cnt = 2
+	else 0.1243 when cnt = 3
+	else 0.0624 when cnt = 4
+	else 0.0312 when cnt = 5
+	else 0.0156 when cnt = 6
+	else 0.0078 when cnt = 7
+	else 0.0039 when cnt = 8
+	else 0.0019 when cnt = 9
+	else 0.0009 when cnt = 10;
+
+ITX : process(clk, load, reset)
+variable K : real := 1.0;
+variable tmpy : real := 0.0;
+variable signe : real;
+begin
+if reset = '1' then
+x <= 1.0;
+elsif load = '1' then
+	if rising_edge(clk) then
+		if cnt < 10 then
+		tmpy := y*2**(-real(cnt));
+		K := 1.0 / sqrt(1.0 + 2.0**(-real(cnt+1))); --kayn li darouha cnt+1
+		signe := theta/abs(theta);
+			if signe = 1.0 then x <= K*(x - tmpy); else x <= K*(x + tmpy); end if;
+		end if;
+	end if;
+end if;
+end process;
+
+ITY : process(clk, load, reset)
+variable K : real := 1.0;
+variable tmpx : real := 0.607;
+variable signe : real;
+begin
+if reset = '1' then
+y <= 0.0;
+elsif load = '1' then
+	if rising_edge(clk) then
+		if cnt < 10 then
+		tmpx := x*2**(-real(cnt));
+		K := 1.0 / sqrt(1.0 + 2.0**(-real(cnt+1)));
+		signe := theta/abs(theta);
+			if signe = 1.0 then y <= K*(y + tmpx); else y <= K*(y - tmpx); end if;
+		end if;
+	end if;
+end if;
+end process;
+
+COUNTER : process(clk, load, reset, cnt)
+begin
+if reset = '1' then
+cnt <= 0; ready <= '0';
+elsif load = '1' then
+	if rising_edge(clk) then
+		if cnt < 10 then cnt <= cnt + 1; end if;
+		if cnt = 10 then ready <= '1'; else ready <= '0'; end if;
+	end if;
+end if;
+end process;
+
+SHIFT : process(clk, load, reset, cnt)
+variable signe : real;
+begin
+if reset = '1' then
+theta <= angle;
+signe := theta/abs(theta);
+elsif load = '1' then
+	if rising_edge(clk) then
+	signe := theta/abs(theta);
+		if cnt < 10 then
+			if signe = 1.0 then theta <= theta - atan;
+			elsif signe = -1.0 then theta <= theta + atan; end if;
+		end if;
+	end if;
+end if;
+end process;
+
+AFFECTATION : process(clk, load, reset)
+begin
+if reset = '1' then
+cos <= x;
+sin <= y;
+elsif load = '1' then
+	if rising_edge(clk) then
+		if cas = 1 then
+		cos <= x; sin <= y;
+		elsif cas = 2 then
+		cos <= -x; sin <= y;
+		elsif cas = 3 then
+		cos <= -x; sin <= -y;
+		elsif cas = 4 then
+		cos <= x; sin <= -y;
+		end if;
+	end if;
+end if;
+end process;
+--cos <= to_sfixed(x,16,-14);
+--sin <= to_sfixed(y,16,-14);
+end architecture;

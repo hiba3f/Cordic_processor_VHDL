@@ -1,0 +1,60 @@
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+use ieee.math_real.all;
+
+entity fsm_cordic is
+port(	clk, reset, load : in std_logic;
+	angle : in real;--sfixed(3 downto -8);
+	cz : in std_logic;
+	init, go : out std_logic;
+	theta : buffer real;
+	cas : out integer);
+end entity;
+
+architecture fsm of fsm_cordic is
+type state is (idle, it, cnt, shift);
+signal etat : state := idle;
+begin
+
+process(clk, load, reset)
+begin
+if reset = '1' then
+etat <= idle;
+elsif load = '1' then
+	if rising_edge(clk) then
+		if cz = '0' then
+		case etat is
+			when idle =>	etat <= it;
+			when it =>	etat <= cnt;
+			when cnt =>	if cz = '1' then etat <= idle; else etat <= shift; end if;
+			when shift =>	etat <= it;
+		end case;
+		end if;
+	end if;
+end if;
+end process;
+
+process(clk, angle)
+variable alpha : real;
+begin
+
+if math_2_pi < angle then alpha := angle mod math_2_pi;
+else alpha := angle;
+end if;
+
+if (0.0 < alpha) and (alpha < (math_pi_over_2)) then
+cas <= 1;
+elsif ((math_pi_over_2) < alpha) and (alpha < math_pi) then
+alpha := (math_pi) - alpha; cas <= 2;
+elsif (math_pi < alpha) and (alpha < (math_3_pi_over_2)) then
+alpha := alpha - math_pi; cas <= 3;
+elsif ((math_3_pi_over_2) < alpha) and (alpha < (math_2_pi)) then
+alpha := (math_2_pi) - alpha; cas <= 4;
+end if;
+theta <= alpha;
+
+if (angle'event or reset = '1') then init <= '1'; else init <= '0'; end if;
+go <= load;
+end process;
+end architecture;
